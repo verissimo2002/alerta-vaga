@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alerta-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./citas.db
+      - EMAIL_SENDER=${EMAIL_SENDER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - USAR_SELENIUM=${USAR_SELENIUM:-false}
+      - USAR_WHATSAPP=${USAR_WHATSAPP:-false}
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+    networks:
+      - alerta-network
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: alerta-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
+    depends_on:
+      - backend
+    networks:
+      - alerta-network
+
+  # Database (opcional - SQLite é local)
+  db:
+    image: sqlite:latest
+    container_name: alerta-db
+    volumes:
+      - ./data:/data
+    networks:
+      - alerta-network
+
+networks:
+  alerta-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
